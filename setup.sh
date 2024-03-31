@@ -22,6 +22,16 @@ else
     echo "powerlevel10k repository already exists. Skipping cloning."
 fi
 
+# Copy git folder to $HOME directory
+GIT_DIR="$REPO_DIR/git"
+if [ -d "$GIT_DIR" ]; then
+    echo "Copying git directory to $HOME..."
+    cp -r "$GIT_DIR" "$HOME/"
+    echo "git directory copied successfully!"
+else
+    echo "Error: git directory not found!"
+fi
+
 # Synchronize .vim, .zshrc, and .bashrc files
 echo "Synchronizing .vim, .zshrc, and .bashrc files to the home directory..."
 rsync -av .vim .zshrc .bashrc ~/
@@ -43,3 +53,4 @@ rsync -av nvim/ "$NVIM_DIR/"
 echo "nvim folder synchronized successfully!"
 
 echo "Setup completed successfully! You're all set!"
+

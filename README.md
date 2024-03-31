@@ -13,7 +13,7 @@ This Bash script automates environment setup on macOS, including Oh My Zsh insta
 ## Usage
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<USERNAME>/<REPOSITORY_NAME>/main/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/igorvieira/dotfiles/main/setup.sh | bash
 ```
 
 Follow the instructions displayed in the terminal. The script will perform the following:

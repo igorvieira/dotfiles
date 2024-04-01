@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# Error Handling
 set -euo pipefail
 
 # Check if Oh My Zsh is already installed
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "Downloading and installing Oh My Zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || {
+        echo "Error installing Oh My Zsh. Exiting..."
+        exit 1
+    }
     echo "Oh My Zsh installed successfully!"
 else
     echo "Oh My Zsh is already installed!"
@@ -16,41 +18,49 @@ fi
 REPO_DIR="$HOME/powerlevel10k"
 if [ ! -d "$REPO_DIR" ]; then
     echo "Cloning the powerlevel10k repository into $REPO_DIR..."
-    git clone git@github.com:romkatv/powerlevel10k.git "$REPO_DIR"
+    git clone git@github.com:romkatv/powerlevel10k.git "$REPO_DIR" || {
+        echo "Error cloning powerlevel10k repository. Exiting..."
+        exit 1
+    }
     echo "powerlevel10k repository cloned successfully!"
 else
     echo "powerlevel10k repository already exists. Skipping cloning."
 fi
 
-# Copy git folder to $HOME directory
-GIT_DIR="$REPO_DIR/git"
-if [ -d "$GIT_DIR" ]; then
-    echo "Copying git directory to $HOME..."
-    cp -r "$GIT_DIR" "$HOME/"
-    echo "git directory copied successfully!"
-else
-    echo "Error: git directory not found!"
+# Copy nvim to .config
+mkdir -p ~/.config
+cp -r nvim ~/.config/ || {
+    echo "Error copying nvim to ~/.config. Exiting..."
+    exit 1
+}
+echo "nvim copied to ~/.config successfully!"
+
+# Copy .vim folder to Mac root
+cp -r .vim ~/ || {
+    echo "Error copying .vim folder to Mac root. Exiting..."
+    exit 1
+}
+echo ".vim folder copied to Mac root successfully!"
+
+# Copy git folder to Mac root
+cp -r git ~/ || {
+    echo "Error copying git folder to Mac root. Exiting..."
+    exit 1
+}
+echo "git folder copied to Mac root successfully!"
+
+# Always overwrite .zshrc or .bashrc file to Mac root
+if [ -f ~/.zshrc ]; then
+    cp ~/.zshrc ~/ || [ $? -eq 1 ] || [ $? -eq 2 ] || {
+        echo ".zshrc copied to Mac root successfully!"
+    }
 fi
 
-# Synchronize .vim, .zshrc, and .bashrc files
-echo "Synchronizing .vim, .zshrc, and .bashrc files to the home directory..."
-rsync -av .vim .zshrc .bashrc ~/
-echo "Files synchronized successfully!"
-
-# Sourcing .zshrc
-echo "Sourcing .zshrc..."
-source ~/.zshrc
-echo ".zshrc sourced successfully!"
-
-# Synchronize the nvim folder to the .config directory
-NVIM_DIR="$HOME/.config/nvim"
-if [ ! -d "$NVIM_DIR" ]; then
-    mkdir -p "$NVIM_DIR"
+if [ -f ~/.bashrc ]; then
+    cp ~/.bashrc ~/ || [ $? -eq 1 ] || [ $? -eq 2 ] || {
+        echo ".bashrc copied to Mac root successfully!"
+    }
 fi
 
-echo "Synchronizing nvim folder to the .config directory..."
-rsync -av nvim/ "$NVIM_DIR/"
-echo "nvim folder synchronized successfully!"
 
-echo "Setup completed successfully! You're all set!"
-
+echo "All configurations copied successfully!"

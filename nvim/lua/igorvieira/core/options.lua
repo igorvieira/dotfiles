@@ -20,7 +20,6 @@ opt.smartcase = true
 -- curso line
 opt.cursorline = false
 
-
 -- appearence
 opt.termguicolors = true
 opt.background = "dark"
@@ -31,7 +30,6 @@ opt.backspace = "indent,eol,start"
 
 -- clipboard
 opt.clipboard:append("unnamedplus")
-
 
 -- split windows
 opt.splitright = true

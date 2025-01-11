@@ -1,29 +1,41 @@
-require("nvim-treesitter.configs").setup({
-	auto_install = true,
+-- import nvim-treesitter plugin safely
+local status, treesitter = pcall(require, "nvim-treesitter.configs")
+if not status then
+	return
+end
+
+-- configure treesitter
+treesitter.setup({
+	-- enable syntax highlighting
+	highlight = {
+		enable = true,
+	},
+	-- enable indentation
+	indent = { enable = true },
+	-- enable autotagging (w/ nvim-ts-autotag plugin)
+	autotag = { enable = true },
+	-- ensure these language parsers are installed
 	ensure_installed = {
-		"c",
-		"lua",
-		"python",
-		"rust",
+		"json",
 		"javascript",
 		"typescript",
 		"tsx",
-		"markdown",
-		"markdown_inline",
+		"yaml",
 		"html",
 		"css",
-		"json",
+		"markdown",
+		"svelte",
+		"graphql",
 		"bash",
+		"lua",
+		"vim",
+		"dockerfile",
+		"gitignore",
 	},
-	highlight = {
-		enable = true,
-		additional_vim_regex_highlighting = false,
-	},
-	indent = {
-		enable = true,
-	},
-	-- windwp/nvim-ts-autotag
-	autotag = {
-		enable = true,
-	},
+	-- auto install above language parsers
+	auto_install = true,
+})
+
+require("nvim-ts-autotag").setup({
+	filetypes = { "html", "javascript", "typescript", "javascriptreact", "typescriptreact", "svelte", "vue" },
 })

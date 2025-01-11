@@ -12,8 +12,6 @@ treesitter.setup({
 	},
 	-- enable indentation
 	indent = { enable = true },
-	-- enable autotagging (w/ nvim-ts-autotag plugin)
-	autotag = { enable = true },
 	-- ensure these language parsers are installed
 	ensure_installed = {
 		"json",
@@ -32,10 +30,6 @@ treesitter.setup({
 		"dockerfile",
 		"gitignore",
 	},
-	-- auto install above language parsers
-	auto_install = true,
 })
 
-require("nvim-ts-autotag").setup({
-	filetypes = { "html", "javascript", "typescript", "javascriptreact", "typescriptreact", "svelte", "vue" },
-})
+require("nvim-ts-autotag").setup()

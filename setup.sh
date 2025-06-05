@@ -97,12 +97,29 @@ else
     echo "powerlevel10k repository already exists. Skipping cloning."
 fi
 
+# Install Powerlevel10k theme for Oh My Zsh
+P10K_THEME_PATH="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+if [ ! -d "$P10K_THEME_PATH" ]; then
+    echo "Installing Powerlevel10k theme for Oh My Zsh..."
+    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_THEME_PATH" || {
+        error "Error installing Powerlevel10k theme. Exiting..."
+        exit 1
+    }
+    echo "Powerlevel10k theme installed successfully!"
+else
+    echo "Powerlevel10k theme already exists in Oh My Zsh custom themes."
+fi
+
 # 6. Install development tools
 log "🛠️  Installing development tools..."
 
 # Docker
-log "🐳 Installing Docker..."
-brew install --cask docker
+if [ ! -d "/Applications/Docker.app" ]; then
+    log "🐳 Installing Docker..."
+    brew install --cask docker
+else
+    log "Docker already installed"
+fi
 
 # Neovim
 log "📝 Installing Neovim..."
@@ -132,32 +149,88 @@ else
     log "Bun already installed"
 fi
 
+# rbenv (Ruby version manager)
+log "💎 Installing rbenv..."
+if ! command -v rbenv &> /dev/null; then
+    brew install rbenv
+    log "rbenv installed successfully!"
+else
+    log "rbenv already installed"
+fi
+
+# Install Nerd Fonts
+log "🔤 Installing Nerd Fonts..."
+brew install font-fira-code-nerd-font
+brew install font-hack-nerd-font
+brew install font-jetbrains-mono-nerd-font
+log "Nerd Fonts installed successfully!"
+
 # 7. Install applications
 log "📱 Installing applications..."
 
 # Spotify
-log "🎵 Installing Spotify..."
-brew install --cask spotify
+if [ ! -d "/Applications/Spotify.app" ]; then
+    log "🎵 Installing Spotify..."
+    brew install --cask spotify
+else
+    log "Spotify already installed"
+fi
 
 # Brave Browser
-log "🦁 Installing Brave Browser..."
-brew install --cask brave-browser
+if [ ! -d "/Applications/Brave Browser.app" ]; then
+    log "🦁 Installing Brave Browser..."
+    brew install --cask brave-browser
+else
+    log "Brave Browser already installed"
+fi
 
 # Obsidian
-log "📓 Installing Obsidian..."
-brew install --cask obsidian
+if [ ! -d "/Applications/Obsidian.app" ]; then
+    log "📓 Installing Obsidian..."
+    brew install --cask obsidian
+else
+    log "Obsidian already installed"
+fi
 
 # Beekeeper Studio
-log "🐝 Installing Beekeeper Studio..."
-brew install --cask beekeeper-studio
+if [ ! -d "/Applications/Beekeeper Studio.app" ]; then
+    log "🐝 Installing Beekeeper Studio..."
+    brew install --cask beekeeper-studio
+else
+    log "Beekeeper Studio already installed"
+fi
 
 # NordVPN
-log "🛡️  Installing NordVPN..."
-brew install --cask nordvpn
+if [ ! -d "/Applications/NordVPN.app" ]; then
+    log "🛡️  Installing NordVPN..."
+    brew install --cask nordvpn
+else
+    log "NordVPN already installed"
+fi
 
 # Discord
-log "💬 Installing Discord..."
-brew install --cask discord
+if [ ! -d "/Applications/Discord.app" ]; then
+    log "💬 Installing Discord..."
+    brew install --cask discord
+else
+    log "Discord already installed"
+fi
+
+# Ghostty
+if [ ! -d "/Applications/Ghostty.app" ]; then
+    log "👻 Installing Ghostty..."
+    brew install --cask ghostty
+else
+    log "Ghostty already installed"
+fi
+
+# Raycast
+if [ ! -d "/Applications/Raycast.app" ]; then
+    log "🚀 Installing Raycast..."
+    brew install --cask raycast
+else
+    log "Raycast already installed"
+fi
 
 # 8. Copy configuration files and folders
 log "⚙️  Copying configuration files and folders..."
@@ -220,16 +293,36 @@ fi
 # 9. Install useful Zsh plugins
 log "🔌 Installing Zsh plugins..."
 
+# Define ZSH_CUSTOM path
+ZSH_CUSTOM_PATH="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+
 # zsh-syntax-highlighting
-if [ ! -d "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
+SYNTAX_HIGHLIGHTING_PATH="$ZSH_CUSTOM_PATH/plugins/zsh-syntax-highlighting"
+if [ ! -d "$SYNTAX_HIGHLIGHTING_PATH" ]; then
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$SYNTAX_HIGHLIGHTING_PATH"
     log "zsh-syntax-highlighting installed"
+else
+    log "zsh-syntax-highlighting already installed"
 fi
 
 # zsh-autosuggestions
-if [ ! -d "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
-    git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+AUTOSUGGESTIONS_PATH="$ZSH_CUSTOM_PATH/plugins/zsh-autosuggestions"
+if [ ! -d "$AUTOSUGGESTIONS_PATH" ]; then
+    git clone https://github.com/zsh-users/zsh-autosuggestions "$AUTOSUGGESTIONS_PATH"
     log "zsh-autosuggestions installed"
+else
+    log "zsh-autosuggestions already installed"
+fi
+
+# Install Dracula theme for Zsh
+log "🧛 Installing Dracula theme for Zsh..."
+DRACULA_PATH="$ZSH_CUSTOM_PATH/themes/dracula"
+if [ ! -d "$DRACULA_PATH" ]; then
+    git clone https://github.com/dracula/zsh.git "$DRACULA_PATH"
+    ln -sf "$DRACULA_PATH/dracula.zsh-theme" "$ZSH_CUSTOM_PATH/themes/dracula.zsh-theme"
+    log "Dracula theme installed"
+else
+    log "Dracula theme already installed"
 fi
 
 # 10. Final configurations
@@ -246,6 +339,11 @@ if ! grep -q "# Custom configurations" ~/.zshrc 2>/dev/null; then
 # PATH for tools
 export PATH="$HOME/.cargo/bin:$PATH"
 export PATH="$HOME/.bun/bin:$PATH"
+
+# Initialize rbenv
+if command -v rbenv &> /dev/null; then
+    eval "$(rbenv init - zsh)"
+fi
 
 # Useful aliases
 alias ll='ls -la'
@@ -295,30 +393,36 @@ echo -e "${BLUE}============================================${NC}"
 echo ""
 echo "Installed tools:"
 echo "• Homebrew"
-echo "• Zsh + Oh My Zsh + Powerlevel10k"
+echo "• Zsh + Oh My Zsh + Powerlevel10k + Dracula Theme"
+echo "• Nerd Fonts (Fira Code, Hack, JetBrains Mono)"
 echo "• Docker"
 echo "• Neovim"
 echo "• Node.js"
 echo "• Rust"
 echo "• Bun"
+echo "• rbenv (Ruby version manager)"
 echo "• Spotify"
 echo "• Brave Browser"
 echo "• Obsidian"
 echo "• Beekeeper Studio"
 echo "• NordVPN"
 echo "• Discord"
+echo "• Ghostty (configured with Dracula theme)"
+echo "• Raycast"
 echo ""
 echo "Copied configurations:"
 echo "• nvim → ~/.config/nvim"
 echo "• .vim → ~/.vim"
 echo "• git → ~/git"
-echo "• .zshrc → ~/.zshrc"
+echo "• .zshrc → ~/.zshrc (with Dracula theme)"
 echo "• .bashrc → ~/.bashrc (if exists)"
+echo "• ghostty → ~/.config/ghostty (Dracula theme + Nerd Font)"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Restart terminal or run: source ~/.zshrc"
 echo "2. Open Docker and complete initial setup"
 echo "3. Configure your accounts in installed applications"
-echo "4. Run 'p10k configure' to setup Powerlevel10k theme"
+echo "4. Open Ghostty to see the Dracula theme with JetBrains Mono Nerd Font"
+echo "5. Run 'p10k configure' if you want to setup Powerlevel10k theme (optional)"
 echo ""
 echo -e "${GREEN}All configurations copied successfully! Happy coding! 🚀${NC}"

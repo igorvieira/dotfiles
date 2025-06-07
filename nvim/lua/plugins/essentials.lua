@@ -43,9 +43,4 @@ return {
       require("cmp").event:on("confirm_done", cmp_autopairs.on_confirm_done())
     end,
   },
-  {
-    "windwp/nvim-ts-autotag",
-    ft = { "html", "javascript", "typescript", "javascriptreact", "typescriptreact", "svelte", "vue", "tsx", "jsx", "astro" },
-    config = function() require("nvim-ts-autotag").setup() end,
-  },
 }

@@ -9,7 +9,7 @@ return {
       indent = { enable = true },
       ensure_installed = {
         "json", "javascript", "typescript", "tsx", "yaml", "html", "css", "markdown",
-        "svelte", "graphql", "bash", "lua", "vim", "dockerfile", "gitignore",
+        "svelte", "graphql", "bash", "lua", "vim", "dockerfile", "gitignore", "astro",
       },
       incremental_selection = {
         enable = true,

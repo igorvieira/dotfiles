@@ -3,51 +3,54 @@ return {
   event = { "BufReadPre", "BufNewFile" },
   config = function()
     local lint = require("lint")
-    
-    local function command_exists(cmd)
-      local handle = io.popen("which " .. cmd .. " 2>/dev/null")
-      if handle then
-        local result = handle:read("*a")
-        handle:close()
-        return result ~= ""
-      end
-      return false
-    end
 
-    local available_linters = {}
-    
-    if command_exists("eslint_d") then
-      available_linters.javascript = { "eslint_d" }
-      available_linters.typescript = { "eslint_d" }
-      available_linters.javascriptreact = { "eslint_d" }
-      available_linters.typescriptreact = { "eslint_d" }
+    local eslint_d_available = vim.fn.executable("eslint_d") == 1
+    local linters_by_ft = {}
+
+    if eslint_d_available then
+      local filetypes = {
+        "javascript",
+        "typescript",
+        "javascriptreact",
+        "typescriptreact",
+      }
+
+      for _, ft in ipairs(filetypes) do
+        linters_by_ft[ft] = { "eslint_d" }
+      end
     else
-      local notified = false
-      if not notified then
-        vim.notify("eslint_d not found. Install via :Mason or npm install -g eslint_d", vim.log.levels.WARN)
-        notified = true
-      end
+      vim.schedule(function()
+        vim.notify(
+          "eslint_d not found. Install via :Mason or npm install -g eslint_d",
+          vim.log.levels.WARN
+        )
+      end)
     end
 
-    lint.linters_by_ft = available_linters
+    lint.linters_by_ft = linters_by_ft
 
     local function safe_try_lint()
-      local current_ft = vim.bo.filetype
-      if available_linters[current_ft] then
+      local ft = vim.bo.filetype
+      if linters_by_ft[ft] then
         local ok, err = pcall(lint.try_lint)
         if not ok then
-          available_linters[current_ft] = nil
-          lint.linters_by_ft = available_linters
+          vim.notify("Lint error: " .. err, vim.log.levels.ERROR)
+          linters_by_ft[ft] = nil
+          lint.linters_by_ft = linters_by_ft
         end
       end
     end
 
     local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
-    vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
-      group = lint_augroup,
-      callback = safe_try_lint,
-    })
+    vim.api.nvim_create_autocmd(
+      { "BufEnter", "BufWritePost", "InsertLeave" },
+      {
+        group = lint_augroup,
+        callback = safe_try_lint,
+      }
+    )
 
     vim.keymap.set("n", "<leader>l", safe_try_lint, { desc = "Trigger linting" })
   end,
 }
+

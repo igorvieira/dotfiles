@@ -1,14 +1,23 @@
 # Dotfiles
 
-> Environment Configuration
+> Automated macOS development environment setup
 
-This Bash script automates environment setup on macOS, including Oh My Zsh installation, theme configuration, and configuration file synchronization.
+This script automates environment setup on macOS, including development tools, applications, shell configuration, and dotfiles synchronization.
+
+## What Gets Installed
+
+**Development Tools:** Homebrew, Node.js, Bun, Rust, Docker, Neovim, rbenv
+
+**Applications:** Brave Browser, Discord, Slack, Spotify, Ghostty, Raycast, Obsidian, Beekeeper Studio, NordVPN
+
+**Shell Setup:** Zsh + Oh My Zsh + Powerlevel10k + Dracula theme + Nerd Fonts
+
+**Configuration:** `.zshrc`, `.bashrc`, `nvim/`, `.vim/`, Git configuration
 
 ## Prerequisites
 
-- macOS (tested on macOS Catalina and Big Sur)
-- Git (for cloning repositories)
-- Curl (for downloading files via URL)
+- macOS (tested on macOS 12.0+)
+- Git and curl (usually pre-installed)
 
 ## Usage
 
@@ -16,19 +25,28 @@ This Bash script automates environment setup on macOS, including Oh My Zsh insta
 curl -fsSL https://raw.githubusercontent.com/igorvieira/dotfiles/main/setup.sh | bash
 ```
 
-Follow the instructions displayed in the terminal. The script will perform the following:
+Or manually:
+```bash
+git clone https://github.com/igorvieira/dotfiles.git
+cd dotfiles
+./setup.sh
+```
 
-    - Download and install Oh My Zsh.
-    - Clone the powerlevel10k repository to the user's home directory, if not already present.
-    - Synchronize `.vim`, `.zshrc`, and `.bashrc` files to the user's home directory.
-    - Synchronize the `nvim` folder to the user's `.config` directory.
-    - Source te `.zshrc` file to apply changes immediately.
+The script will automatically:
+- Install development tools and applications
+- Configure Zsh with Oh My Zsh and Powerlevel10k
+- Sync configuration files to your home directory
+- Set up terminal with Dracula theme
 
-Upon completion, your environment will be configured and ready to use.
+## Testing
+
+```bash
+./test-installation.sh
+```
 
 ## Contributing
 
-Contributions are welcome! Feel free to open an issue or submit a pull request to improve this script.
+Contributions are welcome! Feel free to open an issue or submit a pull request.
 
 ## License
 

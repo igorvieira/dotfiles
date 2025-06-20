@@ -216,6 +216,14 @@ else
     log "Discord already installed"
 fi
 
+# Slack
+if [ ! -d "/Applications/Slack.app" ]; then
+    log "💼 Installing Slack..."
+    brew install --cask slack
+else
+    log "Slack already installed"
+fi
+
 # Ghostty
 if [ ! -d "/Applications/Ghostty.app" ]; then
     log "👻 Installing Ghostty..."
@@ -407,6 +415,7 @@ echo "• Obsidian"
 echo "• Beekeeper Studio"
 echo "• NordVPN"
 echo "• Discord"
+echo "• Slack"
 echo "• Ghostty (configured with Dracula theme)"
 echo "• Raycast"
 echo ""

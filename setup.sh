@@ -1,437 +1,441 @@
-#!/bin/bash
-
-# Mac Setup Script - Dotfiles
-# To run: chmod +x setup-mac.sh && ./setup-mac.sh
+#!/usr/bin/env bash
+#
+# Mac Setup Script — igorvieira/dotfiles
+#
+# Interactive installer: pick what you want, confirm at the end, install.
+# Usage:
+#   chmod +x setup.sh && ./setup.sh
+#
+# Flags:
+#   --all        install everything non-interactively
+#   --minimal    install only the "core" group (shell + fonts)
+#   --dry-run    print planned actions without executing
+#
 
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# ─── Colors / logging ───────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'
+BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
 
-# Logging functions
-log() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+log()  { echo -e "${GREEN}[INFO]${NC} $*"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+err()  { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+step() { echo -e "\n${BLUE}${BOLD}▶ $*${NC}"; }
+
+# ─── Flags ──────────────────────────────────────────────────────────────────
+MODE="interactive"
+DRY_RUN=0
+for arg in "$@"; do
+  case "$arg" in
+    --all)     MODE="all" ;;
+    --minimal) MODE="minimal" ;;
+    --dry-run) DRY_RUN=1 ;;
+    -h|--help)
+      sed -n '2,14p' "$0"; exit 0 ;;
+    *) err "Unknown flag: $arg"; exit 1 ;;
+  esac
+done
+
+run() {
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo -e "${DIM}DRY: $*${NC}"
+  else
+    eval "$@"
+  fi
 }
 
-warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Check if running on macOS
+# ─── OS check ───────────────────────────────────────────────────────────────
 if [[ "$OSTYPE" != "darwin"* ]]; then
-    error "This script is only for macOS"
-    exit 1
+  err "This script is only for macOS"; exit 1
 fi
 
-log "🚀 Starting Mac setup..."
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 1. Install Homebrew
-log "📦 Installing Homebrew..."
-if ! command -v brew &> /dev/null; then
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || {
-        error "Error installing Homebrew. Exiting..."
-        exit 1
-    }
-    
-    # Add brew to PATH
+# ─── Catalog ────────────────────────────────────────────────────────────────
+# Each entry: "key|display|kind|target|default"
+#   kind   = brew | cask | custom | fn
+#   target = brew/cask package name, or function name for custom/fn
+#   default= 1 (preselected) | 0
+#
+# Groups are rendered in the order declared.
+
+declare -a GROUP_NAMES=(
+  "Shell & Prompt"
+  "Fonts"
+  "Terminals"
+  "Editors"
+  "Languages & Runtimes"
+  "Go / gRPC tooling"
+  "Cloud & DevOps"
+  "CLI Essentials"
+  "AI tooling"
+  "Apps — Browsers"
+  "Apps — Productivity"
+  "Apps — Communication"
+  "Apps — Databases"
+  "Apps — Media"
+  "Apps — VPN / Networking"
+  "Apps — Virtualization"
+)
+
+# Using parallel arrays: GROUP_<idx>_ITEMS
+GROUP_0_ITEMS=(
+  "zsh|Zsh shell|brew|zsh|1"
+  "ohmyzsh|Oh My Zsh|custom|install_ohmyzsh|1"
+  "p10k|Powerlevel10k prompt|custom|install_p10k|1"
+  "zsh-plugins|zsh-autosuggestions + syntax-highlighting|custom|install_zsh_plugins|1"
+)
+
+GROUP_1_ITEMS=(
+  "font-fira|FiraCode Nerd Font|cask|font-fira-code-nerd-font|1"
+  "font-jb|JetBrains Mono Nerd Font|cask|font-jetbrains-mono-nerd-font|1"
+  "font-hack|Hack Nerd Font|cask|font-hack-nerd-font|0"
+)
+
+GROUP_2_ITEMS=(
+  "ghostty|Ghostty terminal|cask|ghostty|1"
+  "rio|Rio terminal|cask|rio|0"
+  "iterm2|iTerm2|cask|iterm2|0"
+)
+
+GROUP_3_ITEMS=(
+  "neovim|Neovim (+ clone igorvieira/nvim)|custom|install_neovim|1"
+  "vscode|Visual Studio Code|cask|visual-studio-code|0"
+  "cursor|Cursor|cask|cursor|0"
+)
+
+GROUP_4_ITEMS=(
+  "go|Go|brew|go|1"
+  "rust|Rust (via rustup)|custom|install_rust|1"
+  "node|Node.js|brew|node|1"
+  "bun|Bun|custom|install_bun|1"
+  "pnpm|pnpm|brew|pnpm|1"
+  "elixir|Elixir (+ Erlang)|brew|elixir|1"
+  "python|Python + uv|custom|install_python|1"
+  "rbenv|rbenv (Ruby)|brew|rbenv|0"
+  "deno|Deno|brew|deno|0"
+)
+
+GROUP_5_ITEMS=(
+  "protobuf|protobuf compiler|brew|protobuf|1"
+  "protoc-go|protoc-gen-go|brew|protoc-gen-go|1"
+  "protoc-grpc|protoc-gen-go-grpc|brew|protoc-gen-go-grpc|1"
+  "grpcurl|grpcurl|brew|grpcurl|1"
+  "migrate|golang-migrate|brew|golang-migrate|1"
+  "buf|buf (proto linter)|brew|buf|0"
+)
+
+GROUP_6_ITEMS=(
+  "docker|Docker Desktop|cask|docker|1"
+  "kubectl|kubectl|brew|kubernetes-cli|1"
+  "kind|kind (K8s in Docker)|brew|kind|1"
+  "tilt|Tilt|brew|tilt|1"
+  "ctlptl|ctlptl|custom|install_ctlptl|1"
+  "helm|Helm|brew|helm|1"
+  "k9s|k9s|brew|k9s|1"
+  "awscli|AWS CLI|brew|awscli|1"
+  "doppler|Doppler CLI|custom|install_doppler|0"
+  "terraform|Terraform|brew|terraform|0"
+)
+
+GROUP_7_ITEMS=(
+  "git|git|brew|git|1"
+  "gh|GitHub CLI|brew|gh|1"
+  "ripgrep|ripgrep|brew|ripgrep|1"
+  "fzf|fzf|brew|fzf|1"
+  "bat|bat|brew|bat|1"
+  "eza|eza (ls replacement)|brew|eza|1"
+  "jq|jq|brew|jq|1"
+  "yq|yq|brew|yq|1"
+  "lazygit|lazygit|brew|lazygit|1"
+  "tmux|tmux|brew|tmux|1"
+  "htop|htop|brew|htop|1"
+  "wget|wget|brew|wget|1"
+  "gnupg|gnupg|brew|gnupg|0"
+  "tree|tree|brew|tree|0"
+)
+
+GROUP_8_ITEMS=(
+  "claude|Claude Code CLI (maverick + skills)|custom|install_claude|1"
+)
+
+GROUP_9_ITEMS=(
+  "brave|Brave Browser|cask|brave-browser|1"
+  "chrome|Google Chrome|cask|google-chrome|0"
+)
+
+GROUP_10_ITEMS=(
+  "raycast|Raycast|cask|raycast|1"
+  "obsidian|Obsidian|cask|obsidian|1"
+  "loom|Loom|cask|loom|0"
+)
+
+GROUP_11_ITEMS=(
+  "slack|Slack|cask|slack|1"
+  "discord|Discord|cask|discord|1"
+  "zoom|Zoom|cask|zoom|0"
+)
+
+GROUP_12_ITEMS=(
+  "beekeeper|Beekeeper Studio|cask|beekeeper-studio|1"
+  "dbeaver|DBeaver Community|cask|dbeaver-community|0"
+)
+
+GROUP_13_ITEMS=(
+  "spotify|Spotify|cask|spotify|1"
+)
+
+GROUP_14_ITEMS=(
+  "nordvpn|NordVPN|cask|nordvpn|0"
+)
+
+GROUP_15_ITEMS=(
+  "virtualbox|VirtualBox|cask|virtualbox|0"
+)
+
+# ─── Selection logic ────────────────────────────────────────────────────────
+declare -a SELECTED=()    # "kind|target|display"
+
+group_var() { echo "GROUP_${1}_ITEMS[@]"; }
+
+apply_default_for_mode() {
+  local mode="$1" gidx="$2" entry="$3"
+  IFS='|' read -r key display kind target def <<<"$entry"
+  case "$mode" in
+    all)     SELECTED+=("$kind|$target|$display") ;;
+    minimal) if [[ $gidx -le 1 && "$def" == "1" ]]; then SELECTED+=("$kind|$target|$display"); fi ;;
+  esac
+  return 0
+}
+
+ask_item() {
+  local entry="$1"
+  IFS='|' read -r key display kind target def <<<"$entry"
+  local prompt_def="Y/n"; [[ "$def" == "0" ]] && prompt_def="y/N"
+  local reply
+  read -rp "  $(printf '%-55s' "$display") [$prompt_def] " reply
+  reply="${reply:-}"
+  if [[ -z "$reply" ]]; then
+    [[ "$def" == "1" ]] && SELECTED+=("$kind|$target|$display")
+  elif [[ "$reply" =~ ^[YySs]$ ]]; then
+    SELECTED+=("$kind|$target|$display")
+  fi
+}
+
+group_items() {
+  # Emit one item per line for GROUP_${1}_ITEMS (bash 3.2 compatible)
+  eval "printf '%s\n' \"\${GROUP_${1}_ITEMS[@]}\""
+}
+
+ask_group_policy() {
+  local gidx="$1"
+  local name="${GROUP_NAMES[$gidx]}"
+  echo
+  echo -e "${BOLD}${BLUE}── ${name} ──${NC}"
+  local reply
+  read -rp "  [A]ll defaults, [s]elect per-item, [N]one? [A/s/n] " reply
+  reply="${reply:-A}"
+  case "$reply" in
+    [Aa]*|"")
+      while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        IFS='|' read -r k d kind target def <<<"$entry"
+        [[ "$def" == "1" ]] && SELECTED+=("$kind|$target|$d")
+      done < <(group_items "$gidx") ;;
+    [Ss]*)
+      while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        ask_item "$entry"
+      done < <(group_items "$gidx") ;;
+    [Nn]*) : ;;
+  esac
+}
+
+collect_selections() {
+  if [[ "$MODE" == "all" || "$MODE" == "minimal" ]]; then
+    for gidx in "${!GROUP_NAMES[@]}"; do
+      while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        apply_default_for_mode "$MODE" "$gidx" "$entry"
+      done < <(group_items "$gidx")
+    done
+    return
+  fi
+
+  echo -e "${BOLD}🛠  Interactive setup${NC}"
+  echo "For each group, choose [A]ll defaults, [s]elect per-item, or [N]one."
+  echo "Defaults are marked Y/n (on) or y/N (off)."
+  for gidx in "${!GROUP_NAMES[@]}"; do
+    ask_group_policy "$gidx"
+  done
+}
+
+confirm_selections() {
+  echo
+  echo -e "${BOLD}━━━ Summary ━━━${NC}"
+  if [[ ${#SELECTED[@]} -eq 0 ]]; then
+    warn "Nothing selected. Exiting."; exit 0
+  fi
+  for entry in "${SELECTED[@]}"; do
+    IFS='|' read -r kind target display <<<"$entry"
+    printf "  • %-50s  (%s)\n" "$display" "$kind:$target"
+  done
+  echo
+  local reply
+  read -rp "Proceed with installation? [y/N] " reply
+  [[ "$reply" =~ ^[YySs]$ ]] || { warn "Aborted."; exit 0; }
+}
+
+# ─── Installation primitives ────────────────────────────────────────────────
+ensure_homebrew() {
+  step "Homebrew"
+  if ! command -v brew &>/dev/null; then
+    run '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
     if [[ $(uname -m) == 'arm64' ]]; then
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zshrc
-        eval "$(/opt/homebrew/bin/brew shellenv)"
+      eval "$(/opt/homebrew/bin/brew shellenv)"
     else
-        echo 'eval "$(/usr/local/bin/brew shellenv)"' >> ~/.zshrc
-        eval "$(/usr/local/bin/brew shellenv)"
+      eval "$(/usr/local/bin/brew shellenv)"
     fi
-    log "Homebrew installed successfully!"
-else
-    log "Homebrew already installed"
-fi
+  else
+    log "Homebrew present"
+  fi
+  run "brew update"
+}
 
-# 2. Update Homebrew
-log "🔄 Updating Homebrew..."
-brew update
+install_brew()  { run "brew install $1"; }
+install_cask()  { run "brew install --cask $1"; }
 
-# 3. Install Zsh
-log "🐚 Installing Zsh..."
-if ! command -v zsh &> /dev/null; then
-    brew install zsh
-fi
+install_ohmyzsh() {
+  [[ -d "$HOME/.oh-my-zsh" ]] && { log "Oh My Zsh present"; return; }
+  run 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+}
 
-# Set zsh as default shell
-if [[ "$SHELL" != "$(which zsh)" ]]; then
-    chsh -s $(which zsh)
-    log "Zsh set as default shell"
-fi
+install_p10k() {
+  local path="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
+  [[ -d "$path" ]] || run "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git '$path'"
+  [[ -d "$HOME/powerlevel10k" ]] || run "git clone --depth=1 https://github.com/romkatv/powerlevel10k.git '$HOME/powerlevel10k'"
+}
 
-# 4. Install Oh My Zsh
-log "🎨 Installing Oh My Zsh..."
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    echo "Downloading and installing Oh My Zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || {
-        error "Error installing Oh My Zsh. Exiting..."
-        exit 1
-    }
-    echo "Oh My Zsh installed successfully!"
-else
-    echo "Oh My Zsh is already installed!"
-fi
+install_zsh_plugins() {
+  local base="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins"
+  [[ -d "$base/zsh-syntax-highlighting" ]] || run "git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '$base/zsh-syntax-highlighting'"
+  [[ -d "$base/zsh-autosuggestions" ]]      || run "git clone https://github.com/zsh-users/zsh-autosuggestions '$base/zsh-autosuggestions'"
+}
 
-# 5. Clone Powerlevel10k repository
-log "⚡ Setting up Powerlevel10k..."
-REPO_DIR="$HOME/powerlevel10k"
-if [ ! -d "$REPO_DIR" ]; then
-    echo "Cloning the powerlevel10k repository into $REPO_DIR..."
-    git clone https://github.com/romkatv/powerlevel10k.git "$REPO_DIR" || {
-        error "Error cloning powerlevel10k repository. Exiting..."
-        exit 1
-    }
-    echo "powerlevel10k repository cloned successfully!"
-else
-    echo "powerlevel10k repository already exists. Skipping cloning."
-fi
+install_neovim() {
+  install_brew neovim
+  mkdir -p "$HOME/.config"
+  if [[ -d "$HOME/.config/nvim/.git" ]]; then
+    log "nvim config exists — pulling latest"
+    run "git -C '$HOME/.config/nvim' pull --ff-only"
+  elif [[ -d "$HOME/.config/nvim" ]]; then
+    warn "~/.config/nvim exists but is not a git repo — backing up to ~/.config/nvim.bak"
+    run "mv '$HOME/.config/nvim' '$HOME/.config/nvim.bak.$(date +%s)'"
+    run "git clone https://github.com/igorvieira/nvim '$HOME/.config/nvim'"
+  else
+    run "git clone https://github.com/igorvieira/nvim '$HOME/.config/nvim'"
+  fi
+}
 
-# Install Powerlevel10k theme for Oh My Zsh
-P10K_THEME_PATH="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-if [ ! -d "$P10K_THEME_PATH" ]; then
-    echo "Installing Powerlevel10k theme for Oh My Zsh..."
-    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_THEME_PATH" || {
-        error "Error installing Powerlevel10k theme. Exiting..."
-        exit 1
-    }
-    echo "Powerlevel10k theme installed successfully!"
-else
-    echo "Powerlevel10k theme already exists in Oh My Zsh custom themes."
-fi
+install_rust() {
+  command -v rustc &>/dev/null && { log "Rust present"; return; }
+  run 'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+}
 
-# 6. Install development tools
-log "🛠️  Installing development tools..."
+install_bun() {
+  command -v bun &>/dev/null && { log "Bun present"; return; }
+  run 'curl -fsSL https://bun.sh/install | bash'
+}
 
-# Docker
-if [ ! -d "/Applications/Docker.app" ]; then
-    log "🐳 Installing Docker..."
-    brew install --cask docker
-else
-    log "Docker already installed"
-fi
+install_python() {
+  install_brew python
+  command -v uv &>/dev/null || install_brew uv
+}
 
-# Neovim
-log "📝 Installing Neovim..."
-brew install neovim
+install_ctlptl() { run "brew install tilt-dev/tap/ctlptl"; }
+install_doppler() { run "brew install dopplerhq/cli/doppler"; }
 
-# Node.js
-log "📦 Installing Node.js..."
-brew install node
+install_claude() {
+  if ! command -v node &>/dev/null; then install_brew node; fi
+  if command -v claude &>/dev/null; then
+    log "Claude Code CLI present"
+  else
+    run "npm install -g @anthropic-ai/claude-code"
+  fi
+  log "After install, run: claude — skills like maverick live under ~/.claude/"
+}
 
-# Rust
-log "🦀 Installing Rust..."
-if ! command -v rustc &> /dev/null; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-    source ~/.cargo/env
-    log "Rust installed successfully!"
-else
-    log "Rust already installed"
-fi
+install_one() {
+  local kind="$1" target="$2" display="$3"
+  step "$display"
+  case "$kind" in
+    brew)   install_brew "$target" ;;
+    cask)   install_cask "$target" ;;
+    custom) "$target" ;;
+    *) err "Unknown kind: $kind" ;;
+  esac
+}
 
-# Bun
-log "🍞 Installing Bun..."
-if ! command -v bun &> /dev/null; then
-    curl -fsSL https://bun.sh/install | bash
-    export PATH="$HOME/.bun/bin:$PATH"
-    log "Bun installed successfully!"
-else
-    log "Bun already installed"
-fi
+# ─── Config linking ─────────────────────────────────────────────────────────
+link_configs() {
+  step "Linking config files"
+  mkdir -p "$HOME/.config"
 
-# rbenv (Ruby version manager)
-log "💎 Installing rbenv..."
-if ! command -v rbenv &> /dev/null; then
-    brew install rbenv
-    log "rbenv installed successfully!"
-else
-    log "rbenv already installed"
-fi
+  local files=(".zshrc" ".bashrc" ".p10k.zsh")
+  for f in "${files[@]}"; do
+    [[ -f "$DOTFILES_DIR/$f" ]] || continue
+    if [[ -e "$HOME/$f" && ! -L "$HOME/$f" ]]; then
+      run "mv '$HOME/$f' '$HOME/$f.bak.$(date +%s)'"
+    fi
+    run "ln -sfn '$DOTFILES_DIR/$f' '$HOME/$f'"
+  done
 
-# Install Nerd Fonts
-log "🔤 Installing Nerd Fonts..."
-brew install font-fira-code-nerd-font
-brew install font-hack-nerd-font
-brew install font-jetbrains-mono-nerd-font
-log "Nerd Fonts installed successfully!"
+  # ghostty
+  if [[ -d "$DOTFILES_DIR/ghostty" ]]; then
+    run "mkdir -p '$HOME/.config/ghostty'"
+    run "ln -sfn '$DOTFILES_DIR/ghostty/config' '$HOME/.config/ghostty/config'"
+  fi
 
-# 7. Install applications
-log "📱 Installing applications..."
+  # git
+  if [[ -f "$DOTFILES_DIR/git/.gitconfig" ]]; then
+    [[ -e "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" ]] && run "mv '$HOME/.gitconfig' '$HOME/.gitconfig.bak.$(date +%s)'"
+    run "ln -sfn '$DOTFILES_DIR/git/.gitconfig' '$HOME/.gitconfig'"
+  fi
+  if [[ -f "$DOTFILES_DIR/git/.gitignore_global" ]]; then
+    run "ln -sfn '$DOTFILES_DIR/git/.gitignore_global' '$HOME/.gitignore_global'"
+  fi
 
-# Spotify
-if [ ! -d "/Applications/Spotify.app" ]; then
-    log "🎵 Installing Spotify..."
-    brew install --cask spotify
-else
-    log "Spotify already installed"
-fi
+  # .vim
+  if [[ -d "$DOTFILES_DIR/.vim" ]]; then
+    run "ln -sfn '$DOTFILES_DIR/.vim' '$HOME/.vim'"
+  fi
+}
 
-# Brave Browser
-if [ ! -d "/Applications/Brave Browser.app" ]; then
-    log "🦁 Installing Brave Browser..."
-    brew install --cask brave-browser
-else
-    log "Brave Browser already installed"
-fi
+# ─── Flow ───────────────────────────────────────────────────────────────────
+collect_selections
+confirm_selections
 
-# Obsidian
-if [ ! -d "/Applications/Obsidian.app" ]; then
-    log "📓 Installing Obsidian..."
-    brew install --cask obsidian
-else
-    log "Obsidian already installed"
-fi
+ensure_homebrew
 
-# Beekeeper Studio
-if [ ! -d "/Applications/Beekeeper Studio.app" ]; then
-    log "🐝 Installing Beekeeper Studio..."
-    brew install --cask beekeeper-studio
-else
-    log "Beekeeper Studio already installed"
-fi
+for entry in "${SELECTED[@]}"; do
+  IFS='|' read -r kind target display <<<"$entry"
+  install_one "$kind" "$target" "$display"
+done
 
-# NordVPN
-if [ ! -d "/Applications/NordVPN.app" ]; then
-    log "🛡️  Installing NordVPN..."
-    brew install --cask nordvpn
-else
-    log "NordVPN already installed"
-fi
+link_configs
 
-# Discord
-if [ ! -d "/Applications/Discord.app" ]; then
-    log "💬 Installing Discord..."
-    brew install --cask discord
-else
-    log "Discord already installed"
-fi
+run "brew cleanup || true"
 
-# Slack
-if [ ! -d "/Applications/Slack.app" ]; then
-    log "💼 Installing Slack..."
-    brew install --cask slack
-else
-    log "Slack already installed"
-fi
-
-# Ghostty
-if [ ! -d "/Applications/Ghostty.app" ]; then
-    log "👻 Installing Ghostty..."
-    brew install --cask ghostty
-else
-    log "Ghostty already installed"
-fi
-
-# Raycast
-if [ ! -d "/Applications/Raycast.app" ]; then
-    log "🚀 Installing Raycast..."
-    brew install --cask raycast
-else
-    log "Raycast already installed"
-fi
-
-# 8. Copy configuration files and folders
-log "⚙️  Copying configuration files and folders..."
-
-# Create .config directory if it doesn't exist
-mkdir -p ~/.config
-
-# Copy nvim to .config
-if [ -d "nvim" ]; then
-    cp -r nvim ~/.config/ || {
-        error "Error copying nvim to ~/.config. Exiting..."
-        exit 1
-    }
-    echo "nvim copied to ~/.config successfully!"
-else
-    warn "nvim folder not found in current directory"
-fi
-
-# Copy .vim folder to Mac root
-if [ -d ".vim" ]; then
-    cp -r .vim ~/ || {
-        error "Error copying .vim folder to Mac root. Exiting..."
-        exit 1
-    }
-    echo ".vim folder copied to Mac root successfully!"
-else
-    warn ".vim folder not found in current directory"
-fi
-
-# Copy git folder to Mac root
-if [ -d "git" ]; then
-    cp -r git ~/ || {
-        error "Error copying git folder to Mac root. Exiting..."
-        exit 1
-    }
-    echo "git folder copied to Mac root successfully!"
-else
-    warn "git folder not found in current directory"
-fi
-
-# Always overwrite .zshrc or .bashrc file to Mac root
-if [ -f ".zshrc" ]; then
-    cp .zshrc ~/ || {
-        warn "Could not copy .zshrc to Mac root"
-    }
-    echo ".zshrc copied to Mac root successfully!"
-else
-    warn ".zshrc file not found in current directory"
-fi
-
-if [ -f ".bashrc" ]; then
-    cp .bashrc ~/ || {
-        warn "Could not copy .bashrc to Mac root"
-    }
-    echo ".bashrc copied to Mac root successfully!"
-else
-    warn ".bashrc file not found in current directory"
-fi
-
-# 9. Install useful Zsh plugins
-log "🔌 Installing Zsh plugins..."
-
-# Define ZSH_CUSTOM path
-ZSH_CUSTOM_PATH="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
-
-# zsh-syntax-highlighting
-SYNTAX_HIGHLIGHTING_PATH="$ZSH_CUSTOM_PATH/plugins/zsh-syntax-highlighting"
-if [ ! -d "$SYNTAX_HIGHLIGHTING_PATH" ]; then
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$SYNTAX_HIGHLIGHTING_PATH"
-    log "zsh-syntax-highlighting installed"
-else
-    log "zsh-syntax-highlighting already installed"
-fi
-
-# zsh-autosuggestions
-AUTOSUGGESTIONS_PATH="$ZSH_CUSTOM_PATH/plugins/zsh-autosuggestions"
-if [ ! -d "$AUTOSUGGESTIONS_PATH" ]; then
-    git clone https://github.com/zsh-users/zsh-autosuggestions "$AUTOSUGGESTIONS_PATH"
-    log "zsh-autosuggestions installed"
-else
-    log "zsh-autosuggestions already installed"
-fi
-
-# Install Dracula theme for Zsh
-log "🧛 Installing Dracula theme for Zsh..."
-DRACULA_PATH="$ZSH_CUSTOM_PATH/themes/dracula"
-if [ ! -d "$DRACULA_PATH" ]; then
-    git clone https://github.com/dracula/zsh.git "$DRACULA_PATH"
-    ln -sf "$DRACULA_PATH/dracula.zsh-theme" "$ZSH_CUSTOM_PATH/themes/dracula.zsh-theme"
-    log "Dracula theme installed"
-else
-    log "Dracula theme already installed"
-fi
-
-# 10. Final configurations
-log "🎯 Final configurations..."
-
-# Add useful aliases and PATH to .zshrc if not already present
-if ! grep -q "# Custom configurations" ~/.zshrc 2>/dev/null; then
-    cat >> ~/.zshrc << 'EOF'
-
-# ===========================================
-# Custom configurations
-# ===========================================
-
-# PATH for tools
-export PATH="$HOME/.cargo/bin:$PATH"
-export PATH="$HOME/.bun/bin:$PATH"
-
-# Initialize rbenv
-if command -v rbenv &> /dev/null; then
-    eval "$(rbenv init - zsh)"
-fi
-
-# Useful aliases
-alias ll='ls -la'
-alias la='ls -A'
-alias l='ls -CF'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias grep='grep --color=auto'
-
-# Git aliases
-alias g='git'
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
-alias gp='git push'
-alias gl='git log --oneline'
-alias gd='git diff'
-
-# Docker aliases
-alias d='docker'
-alias dc='docker-compose'
-alias dps='docker ps'
-alias di='docker images'
-
-# Node/npm aliases
-alias ni='npm install'
-alias nr='npm run'
-alias ns='npm start'
-alias nd='npm run dev'
-
-# Neovim alias
-alias v='nvim'
-alias vim='nvim'
-
-EOF
-    log "Custom configurations added to .zshrc"
-fi
-
-# Clean Homebrew cache
-brew cleanup
-
-log "✅ Setup completed!"
-echo ""
-echo -e "${BLUE}============================================${NC}"
-echo -e "${BLUE}           SETUP COMPLETED! 🎉            ${NC}"
-echo -e "${BLUE}============================================${NC}"
-echo ""
-echo "Installed tools:"
-echo "• Homebrew"
-echo "• Zsh + Oh My Zsh + Powerlevel10k + Dracula Theme"
-echo "• Nerd Fonts (Fira Code, Hack, JetBrains Mono)"
-echo "• Docker"
-echo "• Neovim"
-echo "• Node.js"
-echo "• Rust"
-echo "• Bun"
-echo "• rbenv (Ruby version manager)"
-echo "• Spotify"
-echo "• Brave Browser"
-echo "• Obsidian"
-echo "• Beekeeper Studio"
-echo "• NordVPN"
-echo "• Discord"
-echo "• Slack"
-echo "• Ghostty (configured with Dracula theme)"
-echo "• Raycast"
-echo ""
-echo "Copied configurations:"
-echo "• nvim → ~/.config/nvim"
-echo "• .vim → ~/.vim"
-echo "• git → ~/git"
-echo "• .zshrc → ~/.zshrc (with Dracula theme)"
-echo "• .bashrc → ~/.bashrc (if exists)"
-echo "• ghostty → ~/.config/ghostty (Dracula theme + Nerd Font)"
-echo ""
-echo -e "${YELLOW}Next steps:${NC}"
-echo "1. Restart terminal or run: source ~/.zshrc"
-echo "2. Open Docker and complete initial setup"
-echo "3. Configure your accounts in installed applications"
-echo "4. Open Ghostty to see the Dracula theme with JetBrains Mono Nerd Font"
-echo "5. Run 'p10k configure' if you want to setup Powerlevel10k theme (optional)"
-echo ""
-echo -e "${GREEN}All configurations copied successfully! Happy coding! 🚀${NC}"
+echo
+echo -e "${GREEN}${BOLD}✅ Setup complete.${NC}"
+echo
+echo "Next steps:"
+echo "  1. Restart your terminal (or: source ~/.zshrc)"
+echo '  2. Set zsh as default shell:  chsh -s "$(which zsh)"'
+echo "  3. Configure Powerlevel10k:   p10k configure"
+echo "  4. Open Docker Desktop once to finish its install"
+echo -e "  5. Run ${BOLD}claude${NC} to set up Claude Code + maverick"
+echo "  6. Open Neovim — plugins bootstrap via Lazy on first run"
+echo
+echo "Configs linked from: $DOTFILES_DIR"

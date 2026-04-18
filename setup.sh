@@ -26,14 +26,19 @@ step() { echo -e "\n${BLUE}${BOLD}▶ $*${NC}"; }
 # ─── Flags ──────────────────────────────────────────────────────────────────
 MODE="interactive"
 DRY_RUN=0
-for arg in "$@"; do
-  case "$arg" in
-    --all)     MODE="all" ;;
-    --minimal) MODE="minimal" ;;
-    --dry-run) DRY_RUN=1 ;;
+ONLY_KEYS=""
+YES=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --all)     MODE="all"; shift ;;
+    --minimal) MODE="minimal"; shift ;;
+    --only)    MODE="only"; ONLY_KEYS="$2"; shift 2 ;;
+    --only=*)  MODE="only"; ONLY_KEYS="${1#*=}"; shift ;;
+    --yes|-y)  YES=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
       sed -n '2,14p' "$0"; exit 0 ;;
-    *) err "Unknown flag: $arg"; exit 1 ;;
+    *) err "Unknown flag: $1"; exit 1 ;;
   esac
 done
 
@@ -108,6 +113,16 @@ ask_group_policy() {
 }
 
 collect_selections() {
+  if [[ "$MODE" == "only" ]]; then
+    local IFS=','
+    for k in $ONLY_KEYS; do
+      local entry; entry=$(find_item_by_key "$k") || { err "Unknown key: $k"; exit 1; }
+      IFS='|' read -r key display kind target def _ <<<"$entry"
+      SELECTED+=("$key|$kind|$target|$display")
+    done
+    return
+  fi
+
   if [[ "$MODE" == "all" || "$MODE" == "minimal" ]]; then
     for gidx in "${!GROUP_NAMES[@]}"; do
       while IFS= read -r entry; do
@@ -137,6 +152,10 @@ confirm_selections() {
     printf "  • %-50s  (%s)\n" "$display" "$kind:$target"
   done
   echo
+  if [[ $YES -eq 1 ]]; then
+    log "--yes supplied, proceeding."
+    return
+  fi
   local reply
   read -rp "Proceed with installation? [y/N] " reply
   [[ "$reply" =~ ^[YySs]$ ]] || { warn "Aborted."; exit 0; }

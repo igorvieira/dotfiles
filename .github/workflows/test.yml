@@ -1,0 +1,59 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: lint & syntax
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install shellcheck
+        run: brew install shellcheck
+
+      - name: bash syntax check
+        run: |
+          bash -n setup.sh
+          bash -n test-installation.sh
+          bash -n lib/catalog.sh
+
+      - name: shellcheck
+        run: shellcheck -S warning setup.sh test-installation.sh lib/catalog.sh
+
+  dry-run:
+    name: dry-run
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup.sh --all --dry-run
+        run: ./setup.sh --all --dry-run --yes
+
+      - name: setup.sh --minimal --dry-run
+        run: ./setup.sh --minimal --dry-run --yes
+
+      - name: setup.sh --only … --dry-run
+        run: ./setup.sh --only jq,ripgrep,fzf,gh --dry-run --yes
+
+  install-minimal:
+    name: install minimal slice
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Real install of a small, cheap, brew-only slice so the end-to-end
+      # flow (select → receipt → verify) runs on CI without dragging in
+      # Docker, fonts, or cask apps.
+      - name: setup.sh --only
+        run: ./setup.sh --only jq,ripgrep,fzf,gh,bat,eza,tmux,htop --yes
+
+      - name: show receipt
+        run: cat "$HOME/.dotfiles-installed"
+
+      - name: test-installation.sh (receipt mode)
+        run: ./test-installation.sh

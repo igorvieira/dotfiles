@@ -73,9 +73,16 @@ Open `setup.sh`, find the right `GROUP_N_ITEMS` array, and add a line:
 
 ## Testing
 
+`setup.sh` writes an install receipt to `~/.dotfiles-installed`.
+`test-installation.sh` reads it and only checks what you actually installed.
+
 ```bash
-./test-installation.sh
+./test-installation.sh              # check items in the receipt
+./test-installation.sh --defaults   # check every default-on catalog item
+./test-installation.sh --all        # check every catalog item
 ```
+
+Config symlinks (`.zshrc`, `.p10k.zsh`, ghostty, git) are always verified.
 
 ## License
 

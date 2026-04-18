@@ -53,179 +53,34 @@ fi
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ─── Catalog ────────────────────────────────────────────────────────────────
-# Each entry: "key|display|kind|target|default"
-#   kind   = brew | cask | custom | fn
-#   target = brew/cask package name, or function name for custom/fn
-#   default= 1 (preselected) | 0
-#
-# Groups are rendered in the order declared.
-
-declare -a GROUP_NAMES=(
-  "Shell & Prompt"
-  "Fonts"
-  "Terminals"
-  "Editors"
-  "Languages & Runtimes"
-  "Go / gRPC tooling"
-  "Cloud & DevOps"
-  "CLI Essentials"
-  "AI tooling"
-  "Apps — Browsers"
-  "Apps — Productivity"
-  "Apps — Communication"
-  "Apps — Databases"
-  "Apps — Media"
-  "Apps — VPN / Networking"
-  "Apps — Virtualization"
-)
-
-# Using parallel arrays: GROUP_<idx>_ITEMS
-GROUP_0_ITEMS=(
-  "zsh|Zsh shell|brew|zsh|1"
-  "ohmyzsh|Oh My Zsh|custom|install_ohmyzsh|1"
-  "p10k|Powerlevel10k prompt|custom|install_p10k|1"
-  "zsh-plugins|zsh-autosuggestions + syntax-highlighting|custom|install_zsh_plugins|1"
-)
-
-GROUP_1_ITEMS=(
-  "font-fira|FiraCode Nerd Font|cask|font-fira-code-nerd-font|1"
-  "font-jb|JetBrains Mono Nerd Font|cask|font-jetbrains-mono-nerd-font|1"
-  "font-hack|Hack Nerd Font|cask|font-hack-nerd-font|0"
-)
-
-GROUP_2_ITEMS=(
-  "ghostty|Ghostty terminal|cask|ghostty|1"
-  "rio|Rio terminal|cask|rio|0"
-  "iterm2|iTerm2|cask|iterm2|0"
-)
-
-GROUP_3_ITEMS=(
-  "neovim|Neovim (+ clone igorvieira/nvim)|custom|install_neovim|1"
-  "vscode|Visual Studio Code|cask|visual-studio-code|0"
-  "cursor|Cursor|cask|cursor|0"
-)
-
-GROUP_4_ITEMS=(
-  "go|Go|brew|go|1"
-  "rust|Rust (via rustup)|custom|install_rust|1"
-  "node|Node.js|brew|node|1"
-  "bun|Bun|custom|install_bun|1"
-  "pnpm|pnpm|brew|pnpm|1"
-  "elixir|Elixir (+ Erlang)|brew|elixir|1"
-  "python|Python + uv|custom|install_python|1"
-  "rbenv|rbenv (Ruby)|brew|rbenv|0"
-  "deno|Deno|brew|deno|0"
-)
-
-GROUP_5_ITEMS=(
-  "protobuf|protobuf compiler|brew|protobuf|1"
-  "protoc-go|protoc-gen-go|brew|protoc-gen-go|1"
-  "protoc-grpc|protoc-gen-go-grpc|brew|protoc-gen-go-grpc|1"
-  "grpcurl|grpcurl|brew|grpcurl|1"
-  "migrate|golang-migrate|brew|golang-migrate|1"
-  "buf|buf (proto linter)|brew|buf|0"
-)
-
-GROUP_6_ITEMS=(
-  "docker|Docker Desktop|cask|docker|1"
-  "kubectl|kubectl|brew|kubernetes-cli|1"
-  "kind|kind (K8s in Docker)|brew|kind|1"
-  "tilt|Tilt|brew|tilt|1"
-  "ctlptl|ctlptl|custom|install_ctlptl|1"
-  "helm|Helm|brew|helm|1"
-  "k9s|k9s|brew|k9s|1"
-  "awscli|AWS CLI|brew|awscli|1"
-  "doppler|Doppler CLI|custom|install_doppler|0"
-  "terraform|Terraform|brew|terraform|0"
-)
-
-GROUP_7_ITEMS=(
-  "git|git|brew|git|1"
-  "gh|GitHub CLI|brew|gh|1"
-  "ripgrep|ripgrep|brew|ripgrep|1"
-  "fzf|fzf|brew|fzf|1"
-  "bat|bat|brew|bat|1"
-  "eza|eza (ls replacement)|brew|eza|1"
-  "jq|jq|brew|jq|1"
-  "yq|yq|brew|yq|1"
-  "lazygit|lazygit|brew|lazygit|1"
-  "tmux|tmux|brew|tmux|1"
-  "htop|htop|brew|htop|1"
-  "wget|wget|brew|wget|1"
-  "gnupg|gnupg|brew|gnupg|0"
-  "tree|tree|brew|tree|0"
-)
-
-GROUP_8_ITEMS=(
-  "claude|Claude Code CLI (maverick + skills)|custom|install_claude|1"
-)
-
-GROUP_9_ITEMS=(
-  "brave|Brave Browser|cask|brave-browser|1"
-  "chrome|Google Chrome|cask|google-chrome|0"
-)
-
-GROUP_10_ITEMS=(
-  "raycast|Raycast|cask|raycast|1"
-  "obsidian|Obsidian|cask|obsidian|1"
-  "loom|Loom|cask|loom|0"
-)
-
-GROUP_11_ITEMS=(
-  "slack|Slack|cask|slack|1"
-  "discord|Discord|cask|discord|1"
-  "zoom|Zoom|cask|zoom|0"
-)
-
-GROUP_12_ITEMS=(
-  "beekeeper|Beekeeper Studio|cask|beekeeper-studio|1"
-  "dbeaver|DBeaver Community|cask|dbeaver-community|0"
-)
-
-GROUP_13_ITEMS=(
-  "spotify|Spotify|cask|spotify|1"
-)
-
-GROUP_14_ITEMS=(
-  "nordvpn|NordVPN|cask|nordvpn|0"
-)
-
-GROUP_15_ITEMS=(
-  "virtualbox|VirtualBox|cask|virtualbox|0"
-)
+# shellcheck source=lib/catalog.sh
+source "$DOTFILES_DIR/lib/catalog.sh"
 
 # ─── Selection logic ────────────────────────────────────────────────────────
-declare -a SELECTED=()    # "kind|target|display"
-
-group_var() { echo "GROUP_${1}_ITEMS[@]"; }
+declare -a SELECTED=()    # each element: "key|kind|target|display"
 
 apply_default_for_mode() {
   local mode="$1" gidx="$2" entry="$3"
-  IFS='|' read -r key display kind target def <<<"$entry"
+  IFS='|' read -r key display kind target def _ <<<"$entry"
   case "$mode" in
-    all)     SELECTED+=("$kind|$target|$display") ;;
-    minimal) if [[ $gidx -le 1 && "$def" == "1" ]]; then SELECTED+=("$kind|$target|$display"); fi ;;
+    all)     SELECTED+=("$key|$kind|$target|$display") ;;
+    minimal) if [[ $gidx -le 1 && "$def" == "1" ]]; then SELECTED+=("$key|$kind|$target|$display"); fi ;;
   esac
   return 0
 }
 
 ask_item() {
   local entry="$1"
-  IFS='|' read -r key display kind target def <<<"$entry"
+  IFS='|' read -r key display kind target def _ <<<"$entry"
   local prompt_def="Y/n"; [[ "$def" == "0" ]] && prompt_def="y/N"
   local reply
   read -rp "  $(printf '%-55s' "$display") [$prompt_def] " reply
   reply="${reply:-}"
   if [[ -z "$reply" ]]; then
-    [[ "$def" == "1" ]] && SELECTED+=("$kind|$target|$display")
+    [[ "$def" == "1" ]] && SELECTED+=("$key|$kind|$target|$display")
   elif [[ "$reply" =~ ^[YySs]$ ]]; then
-    SELECTED+=("$kind|$target|$display")
+    SELECTED+=("$key|$kind|$target|$display")
   fi
-}
-
-group_items() {
-  # Emit one item per line for GROUP_${1}_ITEMS (bash 3.2 compatible)
-  eval "printf '%s\n' \"\${GROUP_${1}_ITEMS[@]}\""
 }
 
 ask_group_policy() {
@@ -278,7 +133,7 @@ confirm_selections() {
     warn "Nothing selected. Exiting."; exit 0
   fi
   for entry in "${SELECTED[@]}"; do
-    IFS='|' read -r kind target display <<<"$entry"
+    IFS='|' read -r key kind target display <<<"$entry"
     printf "  • %-50s  (%s)\n" "$display" "$kind:$target"
   done
   echo
@@ -418,10 +273,17 @@ confirm_selections
 
 ensure_homebrew
 
+RECEIPT="$HOME/.dotfiles-installed"
+[[ $DRY_RUN -eq 0 ]] && : > "$RECEIPT.tmp"
 for entry in "${SELECTED[@]}"; do
-  IFS='|' read -r kind target display <<<"$entry"
+  IFS='|' read -r key kind target display <<<"$entry"
   install_one "$kind" "$target" "$display"
+  [[ $DRY_RUN -eq 0 ]] && echo "$key" >> "$RECEIPT.tmp"
 done
+if [[ $DRY_RUN -eq 0 ]]; then
+  mv "$RECEIPT.tmp" "$RECEIPT"
+  log "Install receipt written to $RECEIPT"
+fi
 
 link_configs
 

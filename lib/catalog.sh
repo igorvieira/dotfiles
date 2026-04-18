@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+#
+# GROUP_<n>_ITEMS arrays are accessed indirectly via `eval "printf …
+# \${GROUP_${1}_ITEMS[@]}"` in group_items, so shellcheck can't see the use.
+# shellcheck disable=SC2034
+#
 # Shared catalog for setup.sh and test-installation.sh.
 #
 # Entry format (pipe-delimited, 6 fields):
@@ -176,9 +181,20 @@ find_item_by_key() {
 }
 
 # ─── Check helpers (used by check specs of kind fn:*) ──────────────────────
-check_font_fira() { ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -qi "FiraCode"; }
-check_font_jb()   { ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -qi "JetBrainsMono"; }
-check_font_hack() { ls "$HOME/Library/Fonts" /Library/Fonts 2>/dev/null | grep -qi "Hack"; }
+_any_font_matches() {
+  local pattern="$1" dir f
+  shopt -s nullglob nocaseglob
+  for dir in "$HOME/Library/Fonts" /Library/Fonts; do
+    for f in "$dir"/*"$pattern"*.{ttf,otf}; do
+      [[ -e "$f" ]] && { shopt -u nullglob nocaseglob; return 0; }
+    done
+  done
+  shopt -u nullglob nocaseglob
+  return 1
+}
+check_font_fira() { _any_font_matches "FiraCode"; }
+check_font_jb()   { _any_font_matches "JetBrainsMono"; }
+check_font_hack() { _any_font_matches "Hack"; }
 
 check_neovim() {
   command -v nvim >/dev/null 2>&1 && [[ -d "$HOME/.config/nvim" ]]

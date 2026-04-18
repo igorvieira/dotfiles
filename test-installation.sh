@@ -16,6 +16,9 @@
 
 set -uo pipefail
 
+# read -r destructures catalog entries into more vars than some branches use.
+# shellcheck disable=SC2034
+
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'
 BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
 
@@ -79,12 +82,11 @@ echo -e "${BOLD}Dotfiles verification${NC}"
 echo -e "${DIM}Mode: $MODE  •  Items to check: ${#KEYS_TO_TEST[@]}${NC}"
 
 # Catalog items — grouped in the output
-declare -a current_group_label=()
-
 for gidx in "${!GROUP_NAMES[@]}"; do
   local_printed=0
   while IFS= read -r entry; do
     [[ -z "$entry" ]] && continue
+    # shellcheck disable=SC2034  # kind/target destructured but unused here
     IFS='|' read -r key display kind target def check <<<"$entry"
 
     # is this key in the test set?

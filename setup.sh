@@ -2,14 +2,21 @@
 #
 # Mac Setup Script — igorvieira/dotfiles
 #
-# Interactive installer: pick what you want, confirm at the end, install.
-# Usage:
-#   chmod +x setup.sh && ./setup.sh
+# Interactive installer: pick items from lib/catalog.sh, confirm, install.
+# Writes an install receipt at $HOME/.dotfiles-installed listing chosen keys.
+# test-installation.sh reads that receipt to verify results.
+#
+# Architecture: see CLAUDE.md (repo root).
+# Catalog:      lib/catalog.sh is the source of truth for what's installable.
+# Mode:         --all | --minimal | --only K,… | interactive (default)
+# Non-TTY:      pair with --yes to skip the final confirm prompt.
 #
 # Flags:
-#   --all        install everything non-interactively
-#   --minimal    install only the "core" group (shell + fonts)
-#   --dry-run    print planned actions without executing
+#   --all              install every catalog item
+#   --minimal          shell + fonts defaults only
+#   --only k1,k2,…     install exactly the listed keys
+#   --yes, -y          skip confirmation prompt
+#   --dry-run          print planned actions; do not execute or write receipt
 #
 
 set -euo pipefail
@@ -46,7 +53,7 @@ run() {
   if [[ $DRY_RUN -eq 1 ]]; then
     echo -e "${DIM}DRY: $*${NC}"
   else
-    eval "$@"
+    eval "$*"
   fi
 }
 
@@ -204,7 +211,7 @@ install_neovim() {
     log "nvim config exists — pulling latest"
     run "git -C '$HOME/.config/nvim' pull --ff-only"
   elif [[ -d "$HOME/.config/nvim" ]]; then
-    warn "~/.config/nvim exists but is not a git repo — backing up to ~/.config/nvim.bak"
+    warn "$HOME/.config/nvim exists but is not a git repo — backing up"
     run "mv '$HOME/.config/nvim' '$HOME/.config/nvim.bak.$(date +%s)'"
     run "git clone https://github.com/igorvieira/nvim '$HOME/.config/nvim'"
   else

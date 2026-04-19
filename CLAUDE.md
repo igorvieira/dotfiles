@@ -87,15 +87,17 @@ Evaluated by `evaluate_check` in `lib/catalog.sh`:
 
 ## Modes
 
-| Mode        | How it builds SELECTED |
-|-------------|------------------------|
-| interactive | per-group [A]ll/[s]elect/[N]one prompts |
-| `--all`     | every catalog item, regardless of `default` |
-| `--minimal` | every default-on item in groups 0–1 (shell + fonts) |
-| `--only K`  | exactly the listed keys, in given order |
+| Mode             | How it builds SELECTED |
+|------------------|------------------------|
+| *(default)*      | every catalog item — same as `--all` |
+| `--all`          | every catalog item, regardless of `default` |
+| `--minimal`      | every default-on item in groups 0–1 (shell + fonts) |
+| `--only K1,K2,…` | exactly the listed keys, in given order |
+| `--interactive`  | per-group [A]ll/[s]elect/[N]one prompts |
 
-`--yes` skips the final confirmation. `--dry-run` prints every action
-prefixed with `DRY:` and suppresses receipt writing.
+`--dry-run` prints every action prefixed with `DRY:` and suppresses
+receipt writing. `--yes` is the default except in `--interactive` mode,
+where it re-enables the final confirm prompt (`--yes` skips it).
 
 ## Conventions
 

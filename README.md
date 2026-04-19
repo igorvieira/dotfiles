@@ -1,12 +1,12 @@
 # Dotfiles
 
-> Interactive macOS development environment bootstrap
+> Opinionated macOS dev-machine bootstrap — one command, everything installed.
 
-Opinionated setup for a macOS dev machine. Pick what you want, confirm at the end,
-and let it install. Designed for polyglot work (Go + gRPC, Rust, Elixir, Node/Bun,
-Python) on top of Docker + Kubernetes (kind + Tilt).
+Polyglot setup for Go + gRPC, Rust, Elixir, Node/Bun, Python work on top
+of Docker + Kubernetes (kind + Tilt). Runs every item in the catalog by
+default; flags available if you want a subset.
 
-## Quick start
+## Quick start (fresh Mac)
 
 ```bash
 git clone git@github.com:igorvieira/dotfiles.git ~/dotfiles
@@ -14,24 +14,29 @@ cd ~/dotfiles
 ./setup.sh
 ```
 
-Or one-shot via curl (clone-then-run so relative configs are linked correctly):
+or one-liner:
 
 ```bash
 git clone https://github.com/igorvieira/dotfiles.git ~/dotfiles && ~/dotfiles/setup.sh
 ```
 
+That's it — it installs Homebrew (if missing), every tool in the catalog,
+and symlinks the shell / git / ghostty configs. Takes a while on a fresh
+machine because of the cask apps; walk away and come back.
+
 ### Flags
 
-| Flag         | Behavior                                           |
-| ------------ | -------------------------------------------------- |
-| *(none)*     | Interactive — per-group All / Select / None       |
-| `--all`      | Install every catalog item non-interactively      |
-| `--minimal`  | Only shell + fonts                                 |
-| `--dry-run`  | Print what would be installed; change nothing      |
+| Flag              | Behavior                                        |
+| ----------------- | ----------------------------------------------- |
+| *(none)*          | Install everything                              |
+| `--minimal`       | Only shell + fonts                              |
+| `--only k1,k2,…`  | Install exactly the listed catalog keys         |
+| `--interactive`   | Opt into per-group / per-item picker (advanced) |
+| `--dry-run`       | Print what would happen; no side effects        |
 
 ## What's in the catalog
 
-Grouped so you can accept defaults per group or cherry-pick individual items.
+All of the below are installed by default. Use `--only` to cherry-pick.
 
 - **Shell & Prompt** — zsh, Oh My Zsh, Powerlevel10k, autosuggestions, syntax highlighting
 - **Fonts** — FiraCode / JetBrains Mono / Hack Nerd Fonts
@@ -44,11 +49,12 @@ Grouped so you can accept defaults per group or cherry-pick individual items.
 - **AI tooling** — Claude Code CLI (loads `maverick` + other skills from `~/.claude/`)
 - **Apps** — Brave, Chrome, Raycast, Obsidian, Loom, Slack, Discord, Zoom, Beekeeper Studio, DBeaver, Spotify, NordVPN, VirtualBox
 
+Full, authoritative list: [`lib/catalog.sh`](lib/catalog.sh).
+
 ## Neovim config
 
-The Neovim config is **not bundled here** — it lives in its own repo:
-[igorvieira/nvim](https://github.com/igorvieira/nvim). `setup.sh` clones it to
-`~/.config/nvim`; on subsequent runs it does `git pull --ff-only`.
+Not bundled here — lives at [igorvieira/nvim](https://github.com/igorvieira/nvim).
+`setup.sh` clones it to `~/.config/nvim`; on later runs it does `git pull --ff-only`.
 
 ## Linked configs
 
@@ -61,20 +67,10 @@ The Neovim config is **not bundled here** — it lives in its own repo:
 
 Editing the files in the repo updates your live config immediately.
 
-## Adding new tools
+## Verifying the install
 
-Open `setup.sh`, find the right `GROUP_N_ITEMS` array, and add a line:
-
-```
-"key|Display name|brew|formula-name|1"     # brew formula, default on
-"key|Display name|cask|cask-name|0"        # cask, default off
-"key|Display name|custom|install_fn|1"     # calls bash function install_fn
-```
-
-## Testing
-
-`setup.sh` writes an install receipt to `~/.dotfiles-installed`.
-`test-installation.sh` reads it and only checks what you actually installed.
+`setup.sh` writes a receipt to `~/.dotfiles-installed`.
+`test-installation.sh` reads it and only checks what was actually installed.
 
 ```bash
 ./test-installation.sh              # check items in the receipt
@@ -82,7 +78,28 @@ Open `setup.sh`, find the right `GROUP_N_ITEMS` array, and add a line:
 ./test-installation.sh --all        # check every catalog item
 ```
 
-Config symlinks (`.zshrc`, `.p10k.zsh`, ghostty, git) are always verified.
+Config symlinks are always verified.
+
+## Adding new tools
+
+Open [`lib/catalog.sh`](lib/catalog.sh), find the right `GROUP_N_ITEMS`
+array, and append a line:
+
+```
+"key|Display name|brew|formula|1|cmd:<bin>"      # brew formula
+"key|Display name|cask|cask-name|0|app:/Applications/Foo.app"
+"key|Display name|custom|install_fn|1|fn:check_foo"
+```
+
+Schema and conventions are fully documented in [`CLAUDE.md`](CLAUDE.md).
+
+## CI
+
+macOS-only workflow in `.github/workflows/test.yml`:
+
+- `lint` — `bash -n` + `shellcheck -S warning`
+- `dry-run` — `setup.sh` exercised in `--all` / `--minimal` / `--only` modes
+- `install-minimal` — real install of a cheap brew-only slice + verify
 
 ## License
 

@@ -2,21 +2,21 @@
 #
 # Mac Setup Script — igorvieira/dotfiles
 #
-# Interactive installer: pick items from lib/catalog.sh, confirm, install.
+# By default installs EVERY item in lib/catalog.sh with no prompts —
+# optimized for bootstrapping a fresh Mac in one shot.
 # Writes an install receipt at $HOME/.dotfiles-installed listing chosen keys.
 # test-installation.sh reads that receipt to verify results.
 #
 # Architecture: see CLAUDE.md (repo root).
 # Catalog:      lib/catalog.sh is the source of truth for what's installable.
-# Mode:         --all | --minimal | --only K,… | interactive (default)
-# Non-TTY:      pair with --yes to skip the final confirm prompt.
 #
 # Flags:
-#   --all              install every catalog item
+#   (default)          install everything
 #   --minimal          shell + fonts defaults only
 #   --only k1,k2,…     install exactly the listed keys
-#   --yes, -y          skip confirmation prompt
+#   --interactive      opt into the per-group / per-item picker
 #   --dry-run          print planned actions; do not execute or write receipt
+#   -h, --help         show this header
 #
 
 set -euo pipefail
@@ -31,18 +31,19 @@ err()  { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 step() { echo -e "\n${BLUE}${BOLD}▶ $*${NC}"; }
 
 # ─── Flags ──────────────────────────────────────────────────────────────────
-MODE="interactive"
+MODE="all"         # install everything by default
 DRY_RUN=0
 ONLY_KEYS=""
-YES=0
+YES=1              # no confirmation prompt in non-interactive modes
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --all)     MODE="all"; shift ;;
-    --minimal) MODE="minimal"; shift ;;
-    --only)    MODE="only"; ONLY_KEYS="$2"; shift 2 ;;
-    --only=*)  MODE="only"; ONLY_KEYS="${1#*=}"; shift ;;
-    --yes|-y)  YES=1; shift ;;
-    --dry-run) DRY_RUN=1; shift ;;
+    --all)         MODE="all"; shift ;;
+    --minimal)     MODE="minimal"; shift ;;
+    --only)        MODE="only"; ONLY_KEYS="$2"; shift 2 ;;
+    --only=*)      MODE="only"; ONLY_KEYS="${1#*=}"; shift ;;
+    --interactive) MODE="interactive"; YES=0; shift ;;
+    --yes|-y)      YES=1; shift ;;
+    --dry-run)     DRY_RUN=1; shift ;;
     -h|--help)
       sed -n '2,14p' "$0"; exit 0 ;;
     *) err "Unknown flag: $1"; exit 1 ;;
@@ -86,7 +87,7 @@ ask_item() {
   IFS='|' read -r key display kind target def _ <<<"$entry"
   local prompt_def="Y/n"; [[ "$def" == "0" ]] && prompt_def="y/N"
   local reply
-  read -rp "  $(printf '%-55s' "$display") [$prompt_def] " reply
+  read -rp "  $(printf '%-55s' "$display") [$prompt_def] " reply || true
   reply="${reply:-}"
   if [[ -z "$reply" ]]; then
     [[ "$def" == "1" ]] && SELECTED+=("$key|$kind|$target|$display")
@@ -101,14 +102,14 @@ ask_group_policy() {
   echo
   echo -e "${BOLD}${BLUE}── ${name} ──${NC}"
   local reply
-  read -rp "  [A]ll defaults, [s]elect per-item, [N]one? [A/s/n] " reply
+  read -rp "  [A]ll defaults, [s]elect per-item, [N]one? [A/s/n] " reply || true
   reply="${reply:-A}"
   case "$reply" in
     [Aa]*|"")
       while IFS= read -r entry; do
         [[ -z "$entry" ]] && continue
-        IFS='|' read -r k d kind target def <<<"$entry"
-        [[ "$def" == "1" ]] && SELECTED+=("$kind|$target|$d")
+        IFS='|' read -r key display kind target def _ <<<"$entry"
+        [[ "$def" == "1" ]] && SELECTED+=("$key|$kind|$target|$display")
       done < <(group_items "$gidx") ;;
     [Ss]*)
       while IFS= read -r entry; do
@@ -164,7 +165,7 @@ confirm_selections() {
     return
   fi
   local reply
-  read -rp "Proceed with installation? [y/N] " reply
+  read -rp "Proceed with installation? [y/N] " reply || true
   [[ "$reply" =~ ^[YySs]$ ]] || { warn "Aborted."; exit 0; }
 }
 
